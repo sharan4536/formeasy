@@ -1,15 +1,16 @@
 console.log("FormEasy Background Service Worker Running");
 
-chrome.runtime.onInstalled.addListener(() => {
-  console.log("FormEasy installed");
+chrome.runtime.onInstalled.addListener(async () => {
+  console.log("FormEasy installed / updated");
 });
 
 chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
   if (request.type === 'EXPLAIN_FIELD') {
     const { label, context } = request.payload;
     
-    chrome.storage.sync.get(['geminiApiKey'], async (result) => {
-      if (!result.geminiApiKey) {
+    chrome.storage.sync.get(['geminiApiKey', 'formeasy_prefs'], async (result: Record<string, any>) => {
+      const apiKey = result.geminiApiKey || result.formeasy_prefs?.geminiApiKey;
+      if (!apiKey) {
         sendResponse({
           success: true, 
           data: {
@@ -36,7 +37,7 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
           "autofillKey": "Optional. ONLY if this field is an EXACT match for one of these: [firstName, lastName, email, phone, dob, gender, bloodGroup, nationality, fathersName, mothersName, maritalStatus, aadhaarNumber, panNumber, correspondenceAddress, permanentAddress, city, state, pincode, annualIncome, ifsc, bankAccount]. Otherwise null."
         }`;
 
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${result.geminiApiKey}`, {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -67,5 +68,18 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
     });
 
     return true; // indicates async response
+  }
+
+  if (request.type === 'TRIGGER_AUTOFILL_ACTIVE_TAB') {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0]?.id) {
+        chrome.tabs.sendMessage(tabs[0].id, { type: 'EXECUTE_AUTOFILL' }, (res) => {
+          sendResponse(res || { success: true });
+        });
+      } else {
+        sendResponse({ success: false, error: 'No active tab found' });
+      }
+    });
+    return true;
   }
 });

@@ -1,16 +1,45 @@
-/* Isolation for content script styles */
-.formeasy-floating-card {
-  width: 320px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  padding: 16px;
+/* FormEasy Content Script Styling - Isolated Namespace */
+
+#formeasy-root {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  z-index: 2147483647;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   color: #111827;
-  font-size: 14px;
+  pointer-events: none;
+}
+
+#formeasy-root * {
+  box-sizing: border-box;
+}
+
+/* Floating Card for Focused Field */
+.formeasy-floating-card {
+  width: 330px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  padding: 16px;
+  font-size: 13.5px;
   line-height: 1.5;
   pointer-events: auto;
+  animation: formeasy-fadein 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  backdrop-filter: blur(8px);
+}
+
+@keyframes formeasy-fadein {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .formeasy-header {
@@ -18,32 +47,60 @@
   justify-content: space-between;
   align-items: center;
   font-size: 12px;
-  color: #6b7280;
+  color: #475569;
   margin-bottom: 8px;
-  font-weight: 500;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.formeasy-header-brand {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #2563eb;
+  font-weight: 700;
+}
+
+.formeasy-sync-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  background: #ecfdf5;
+  color: #059669;
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-weight: 600;
+  border: 1px solid #a7f3d0;
 }
 
 .formeasy-close {
-  background: none;
+  background: transparent;
   border: none;
-  font-size: 16px;
+  font-size: 18px;
+  line-height: 1;
   cursor: pointer;
-  color: #9ca3af;
+  color: #94a3b8;
+  padding: 2px;
+  border-radius: 4px;
+  transition: all 0.15s;
 }
 
 .formeasy-close:hover {
-  color: #4b5563;
+  color: #1e293b;
+  background: #f1f5f9;
 }
 
 .formeasy-title {
-  font-weight: 600;
-  font-size: 16px;
-  margin-bottom: 12px;
-  color: #111827;
+  font-weight: 700;
+  font-size: 15px;
+  margin-bottom: 10px;
+  color: #0f172a;
 }
 
 .formeasy-section {
-  margin-bottom: 12px;
+  margin-bottom: 10px;
+  font-size: 13px;
 }
 
 .formeasy-section:last-child {
@@ -51,21 +108,32 @@
 }
 
 .formeasy-section-title {
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 700;
   text-transform: uppercase;
-  color: #6b7280;
-  margin-bottom: 4px;
+  color: #64748b;
+  margin-bottom: 3px;
   letter-spacing: 0.05em;
 }
 
 .formeasy-section-content {
-  color: #374151;
+  color: #334155;
+  line-height: 1.45;
+}
+
+.formeasy-example {
+  background: #f8fafc;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border-left: 3px solid #94a3b8;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  color: #334155;
 }
 
 .formeasy-tip {
   background-color: #eff6ff;
-  padding: 8px;
+  padding: 8px 10px;
   border-radius: 6px;
   border-left: 3px solid #3b82f6;
 }
@@ -76,11 +144,204 @@
 
 .formeasy-warning {
   background-color: #fffbeb;
-  padding: 8px;
+  padding: 8px 10px;
   border-radius: 6px;
   border-left: 3px solid #f59e0b;
 }
 
 .formeasy-warning .formeasy-section-title {
   color: #b45309;
+}
+
+/* Action Buttons in Card */
+.formeasy-actions {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.formeasy-btn-primary {
+  width: 100%;
+  padding: 8px 12px;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.25);
+  transition: all 0.15s ease;
+}
+
+.formeasy-btn-primary:hover {
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+  box-shadow: 0 4px 8px rgba(37, 99, 235, 0.35);
+  transform: translateY(-1px);
+}
+
+.formeasy-btn-secondary {
+  width: 100%;
+  padding: 6px 12px;
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.formeasy-btn-secondary:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+/* Floating Bottom-Right Assistant Widget */
+.formeasy-floating-widget {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 2147483646;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid #e2e8f0;
+  padding: 8px 14px;
+  border-radius: 9999px;
+  box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.12), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  backdrop-filter: blur(12px);
+  animation: formeasy-slideup 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.2s ease;
+}
+
+.formeasy-floating-widget:hover {
+  box-shadow: 0 14px 28px -3px rgba(37, 99, 235, 0.2), 0 6px 10px -2px rgba(0, 0, 0, 0.08);
+  border-color: #bfdbfe;
+}
+
+@keyframes formeasy-slideup {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.formeasy-widget-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.formeasy-widget-count {
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+}
+
+.formeasy-widget-autofill-btn {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: white;
+  border: none;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  box-shadow: 0 2px 5px rgba(37, 99, 235, 0.3);
+  transition: all 0.15s ease;
+}
+
+.formeasy-widget-autofill-btn:hover {
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+  transform: scale(1.03);
+}
+
+.formeasy-widget-close {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  transition: all 0.15s;
+}
+
+.formeasy-widget-close:hover {
+  color: #475569;
+  background: #f1f5f9;
+}
+
+/* Toast Notification */
+.formeasy-toast {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2147483647;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #0f172a;
+  color: #ffffff;
+  padding: 12px 20px;
+  border-radius: 12px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+  font-size: 13.5px;
+  font-weight: 500;
+  animation: formeasy-toastin 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+@keyframes formeasy-toastin {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -15px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.formeasy-toast-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: #22c55e;
+  border-radius: 50%;
+  color: white;
+  font-weight: bold;
+  font-size: 14px;
 }
