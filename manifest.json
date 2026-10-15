@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "FormEasy",
+  "version": "1.0.0",
+  "description": "Understand the form. Fill it right.",
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "options_page": "options.html",
+  "background": {
+    "service_worker": "src/background/index.ts",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/content/index.tsx"]
+    }
+  ],
+  "host_permissions": [
+    "https://html.duckduckgo.com/*"
+  ],
+  "permissions": [
+    "storage",
+    "activeTab"
+  ]
+}
