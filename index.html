@@ -168,14 +168,14 @@
     <div class="page-wrapper">
       <!-- Demo Explainer Banner -->
       <div class="demo-banner">
-        <h2>✨ FormEasy Review 3 Demonstration Portal</h2>
+        <h2>FormEasy Test Portal</h2>
         <p>
-          This official-style application form tests cross-device automatic form filling. When using FormEasy with your synced account, simply click the floating <strong>⚡ Auto-Fill Form</strong> button (bottom right) or focus any field to see AI explanations and instantaneous autofilling.
+          This application portal provides a test bed for autofilling and field guidance. Use the floating assistant widget or focus any field to see contextual tips and one-click filling.
         </p>
         <div class="instructions">
-          <span>⚡ 1-Click Auto-Fill Active</span>
-          <span>☁️ Synced Across All Devices</span>
-          <span>🤖 Gemini AI Guidance Ready</span>
+          <span>Universal Autofill</span>
+          <span>Cloud Synchronized</span>
+          <span>Contextual Explanations</span>
         </div>
       </div>
 
@@ -188,7 +188,7 @@
           <div class="portal-badge">Academic Year 2026-27</div>
         </div>
 
-        <form id="demo-form">
+        <form id="demo-form" onsubmit="event.preventDefault(); return false;">
           <!-- 1. Personal Information -->
           <div class="form-section">
             <div class="section-heading">1. Personal & Contact Information</div>
@@ -311,17 +311,62 @@
               </div>
             </div>
 
-            <div class="form-group">
-              <label for="nominee">Nominee Name</label>
-              <input type="text" id="nominee" name="nominee" placeholder="Nominee full name" />
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label for="nominee">Nominee Name</label>
+                <input type="text" id="nominee" name="nominee" placeholder="Nominee full name" />
+              </div>
+              <div class="form-group">
+                <label for="emergency">Emergency Contact Mobile</label>
+                <input type="text" id="emergency" name="emergencyContact" placeholder="10-digit mobile number" />
+              </div>
+            </div>
+
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label for="linkedin">LinkedIn Profile / Portfolio</label>
+                <input type="text" id="linkedin" name="linkedin" placeholder="https://linkedin.com/in/..." />
+              </div>
+              <div class="form-group">
+                <label for="grad-year">Graduation Year / Batch</label>
+                <input type="text" id="grad-year" name="yearOfPassing" placeholder="e.g. 2024" />
+              </div>
             </div>
           </div>
 
-          <button type="button" class="btn-submit" onclick="alert('Form submission simulated successfully!')">
+          <!-- 4. Commercial & GST Details (For Grants / Startup Track) -->
+          <div class="form-section">
+            <div class="section-heading">4. Business, Startup & GST Details</div>
+            
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label for="gstin">GSTIN / GST Number</label>
+                <input type="text" id="gstin" name="gstNumber" placeholder="e.g. 27AAPFU0939F1ZV" />
+              </div>
+              <div class="form-group">
+                <label for="biz-name">Legal Business / Enterprise Name</label>
+                <input type="text" id="biz-name" name="businessName" placeholder="Registered Firm / Entity Name" />
+              </div>
+            </div>
+
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label for="trade-name">Trade Name</label>
+                <input type="text" id="trade-name" name="tradeName" placeholder="Brand / Trading Name" />
+              </div>
+              <div class="form-group">
+                <label for="gst-username">GST Portal Username / Login ID</label>
+                <input type="text" id="gst-username" name="portalUsername" placeholder="e.g. taxpayer_login" />
+              </div>
+            </div>
+          </div>
+
+          <button type="submit" class="btn-submit">
             Submit Application
           </button>
         </form>
       </div>
     </div>
+    <script type="module" src="/src/content/index.tsx"></script>
   </body>
 </html>

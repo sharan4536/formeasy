@@ -30,6 +30,37 @@ export interface UserProfile {
   bankName?: string;
   annualIncome: string;
   nominee?: string;
+
+  // Extended & Smart Auto-Recorded Fields
+  emergencyContact?: string;
+  branch?: string;
+  cgpa?: string;
+  yearOfPassing?: string;
+  linkedin?: string;
+  github?: string;
+  portfolio?: string;
+  skills?: string;
+
+  // Commercial & GST Details
+  gstNumber?: string;
+  businessName?: string;
+  tradeName?: string;
+  businessAddress?: string;
+  portalUsername?: string;
+  turnover?: string;
+  authorizedSignatory?: string;
+
+  // Dynamic Custom Fields captured from arbitrary web forms
+  customFields?: Record<string, string>;
+  learnedHistory?: Array<{
+    id: string;
+    key: string;
+    label: string;
+    value: string;
+    timestamp: string;
+    sourceUrl?: string;
+  }>;
+  [key: string]: any;
 }
 
 export interface ConnectedDevice {
@@ -57,6 +88,8 @@ export interface UserPreferences {
   autoFillPageOnLoad: boolean;
   autoFillOnFocus: boolean;
   showFloatingWidget: boolean;
+  autoRecordNewData?: boolean;
+  notifyOnAutoRecord?: boolean;
   confirmSensitive: boolean;
   showTips: boolean;
   showWarnings: boolean;

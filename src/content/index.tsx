@@ -1,21 +1,25 @@
-import { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import './content.css';
 import { UserProfile, UserAccount, UserPreferences } from '../utils/types';
-import { loadAllData, DEFAULT_PROFILE, DEFAULT_ACCOUNT, DEFAULT_PREFERENCES } from '../utils/storage';
+import { loadAllData, saveProfile, DEFAULT_PROFILE, DEFAULT_ACCOUNT, DEFAULT_PREFERENCES } from '../utils/storage';
 import {
   scanPageForFormFields,
   matchElementToProfileKey,
   fillElementValue,
   autofillEntirePage,
-  getElementIdentifier
+  getElementIdentifier,
+  detectFieldChange,
+  recordFieldChange,
+  scanFormForNewChanges
 } from '../utils/autofill';
+import { getFieldExplanation, FieldExplanation } from '../utils/explanations';
 
 let isHoveringPopup = false;
 
 interface FloatingCardProps {
   label: string;
-  explanation: any;
+  explanation: FieldExplanation | null;
   style: React.CSSProperties;
   onClose: () => void;
   onMouseEnter: () => void;
@@ -25,9 +29,10 @@ interface FloatingCardProps {
   fieldValue: string | null;
   accountName?: string;
   totalFormFields: number;
+  isPreview?: boolean;
 }
 
-const FloatingCard = ({
+const FloatingCard: React.FC<FloatingCardProps> = ({
   label,
   explanation,
   style,
@@ -38,8 +43,9 @@ const FloatingCard = ({
   onAutofillAll,
   fieldValue,
   accountName,
-  totalFormFields
-}: FloatingCardProps) => {
+  totalFormFields,
+  isPreview
+}) => {
   return (
     <div
       className="formeasy-floating-card"
@@ -49,15 +55,20 @@ const FloatingCard = ({
     >
       <div className="formeasy-header">
         <div className="formeasy-header-brand">
-          <span>✨</span> FormEasy
+          FormEasy
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span className="formeasy-hover-indicator">
+            {isPreview ? 'Preview' : 'Active Field'}
+          </span>
           {accountName && (
-            <span className="formeasy-sync-badge" title="Synced across all your devices">
-              ☁️ {accountName.split(' ')[0]}
+            <span className="formeasy-sync-badge">
+              Synced: {accountName.split(' ')[0]}
             </span>
           )}
-          <button onClick={onClose} className="formeasy-close" title="Close helper">×</button>
+          <button onClick={onClose} className="formeasy-close" title="Close helper">
+            &times;
+          </button>
         </div>
       </div>
 
@@ -79,27 +90,26 @@ const FloatingCard = ({
 
       {explanation?.tip && (
         <div className="formeasy-section formeasy-tip">
-          <div className="formeasy-section-title">💡 HELPFUL TIP</div>
+          <div className="formeasy-section-title">TIP</div>
           <div className="formeasy-section-content">{explanation.tip}</div>
         </div>
       )}
 
       {explanation?.warning && (
         <div className="formeasy-section formeasy-warning">
-          <div className="formeasy-section-title">⚠ WATCH OUT</div>
+          <div className="formeasy-section-title">NOTE</div>
           <div className="formeasy-section-content">{explanation.warning}</div>
         </div>
       )}
 
-      {/* Action Buttons */}
       <div className="formeasy-actions">
         {fieldValue && (
           <button
             onClick={onAutofillField}
             className="formeasy-btn-primary"
-            title="Fill this specific field from your synced account"
+            title="Autofill this field"
           >
-            <span>⚡</span> Autofill: "{fieldValue.length > 20 ? fieldValue.slice(0, 18) + '...' : fieldValue}"
+            Autofill: &quot;{fieldValue.length > 22 ? fieldValue.slice(0, 20) + '...' : fieldValue}&quot;
           </button>
         )}
 
@@ -107,9 +117,9 @@ const FloatingCard = ({
           <button
             onClick={onAutofillAll}
             className="formeasy-btn-secondary"
-            title="Autofill all detected fields across this entire form"
+            title="Autofill all detected fields"
           >
-            <span>✨</span> Auto-Fill Entire Form ({totalFormFields} fields)
+            Autofill All Fields ({totalFormFields})
           </button>
         )}
       </div>
@@ -117,69 +127,87 @@ const FloatingCard = ({
   );
 };
 
-const FormEasyApp = () => {
+const FormEasyApp: React.FC = () => {
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
   const [account, setAccount] = useState<UserAccount>(DEFAULT_ACCOUNT);
   const [preferences, setPreferences] = useState<UserPreferences>(DEFAULT_PREFERENCES);
-  
+
   const [activeField, setActiveField] = useState<{
     element: HTMLElement;
     label: string;
     rect: DOMRect;
     matchedKey: keyof UserProfile | null;
     value: string | null;
+    isHover?: boolean;
   } | null>(null);
 
-  const [explanation, setExplanation] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [explanation, setExplanation] = useState<FieldExplanation | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [detectedCount, setDetectedCount] = useState(0);
   const [showWidget, setShowWidget] = useState(true);
 
+  const profileRef = useRef<UserProfile>(profile);
+  const preferencesRef = useRef<UserPreferences>(preferences);
   const activeElementRef = useRef<HTMLElement | null>(null);
-  const toastTimeoutRef = useRef<any>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    profileRef.current = profile;
+  }, [profile]);
+
+  useEffect(() => {
+    preferencesRef.current = preferences;
+  }, [preferences]);
 
   const showToast = (msg: string) => {
-    clearTimeout(toastTimeoutRef.current);
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+    }
     setToastMessage(msg);
-    toastTimeoutRef.current = setTimeout(() => {
+    toastTimerRef.current = setTimeout(() => {
       setToastMessage(null);
-    }, 3500);
+    }, 2800);
   };
 
-  // Initial load of synced data
+  // Initial load
   useEffect(() => {
     loadAllData().then(({ profile: p, account: a, preferences: pr }) => {
       setProfile(p);
       setAccount(a);
       setPreferences(pr);
+      profileRef.current = p;
+      preferencesRef.current = pr;
 
-      // Check fields on page
       const fields = scanPageForFormFields(p);
       setDetectedCount(fields.length);
 
-      // Automatic fill on page load if preference is enabled
       if (pr.autoFillPageOnLoad && fields.length > 0) {
         const res = autofillEntirePage(p);
         if (res.filledCount > 0) {
-          showToast(`⚡ Automatically filled ${res.filledCount} fields from your synced account!`);
+          showToast(`Autofilled ${res.filledCount} fields`);
         }
       }
     });
 
-    // Listen for storage changes across tabs or devices
     if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
-      const handleStorageChange = (changes: any, areaName: string) => {
+      const handleStorageChange = (changes: Record<string, chrome.storage.StorageChange>, areaName: string) => {
         if (areaName === 'sync' || areaName === 'local') {
           if (changes.formeasy_profile || changes.userProfile) {
-            const newProf = changes.formeasy_profile?.newValue || changes.userProfile?.newValue;
-            if (newProf) setProfile(newProf);
+            const newProf = (changes.formeasy_profile?.newValue || changes.userProfile?.newValue) as UserProfile;
+            if (newProf) {
+              setProfile(newProf);
+              profileRef.current = newProf;
+              const fields = scanPageForFormFields(newProf);
+              setDetectedCount(fields.length);
+            }
           }
           if (changes.formeasy_account) {
-            setAccount(changes.formeasy_account.newValue);
+            setAccount(changes.formeasy_account.newValue as UserAccount);
           }
           if (changes.formeasy_prefs) {
-            setPreferences(changes.formeasy_prefs.newValue);
+            const newPrefs = changes.formeasy_prefs.newValue as UserPreferences;
+            setPreferences(newPrefs);
+            preferencesRef.current = newPrefs;
           }
         }
       };
@@ -191,20 +219,24 @@ const FormEasyApp = () => {
     }
   }, []);
 
-  // Message listener for popup & background actions
+  // Extension runtime message handler
   useEffect(() => {
     if (typeof chrome === 'undefined' || !chrome.runtime?.onMessage) return;
 
-    const messageHandler = (req: any, _sender: any, sendResponse: any) => {
+    const messageHandler = (
+      req: { type: string },
+      _sender: chrome.runtime.MessageSender,
+      sendResponse: (response?: unknown) => void
+    ) => {
       if (req.type === 'EXECUTE_AUTOFILL') {
-        const result = autofillEntirePage(profile);
-        showToast(`✨ FormEasy auto-filled ${result.filledCount} fields successfully!`);
+        const result = autofillEntirePage(profileRef.current);
+        showToast(`Autofilled ${result.filledCount} fields`);
         sendResponse({ success: true, count: result.filledCount });
         return true;
       }
 
       if (req.type === 'GET_PAGE_STATS') {
-        const fields = scanPageForFormFields(profile);
+        const fields = scanPageForFormFields(profileRef.current);
         const matchable = fields.filter(f => f.matchedKey && f.value).length;
         sendResponse({ total: fields.length, matchable });
         return true;
@@ -215,19 +247,60 @@ const FormEasyApp = () => {
     return () => {
       chrome.runtime.onMessage.removeListener(messageHandler);
     };
-  }, [profile]);
+  }, []);
 
-  // Focus & Blur Event Listeners
+  // Field change detection and persistence
+  const checkAndRecordField = (target: HTMLElement) => {
+    if (!['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return;
+    const type = (target.getAttribute('type') || 'text').toLowerCase();
+    if (['password', 'hidden', 'submit', 'button', 'reset', 'file', 'image'].includes(type)) return;
+
+    const change = detectFieldChange(target, profileRef.current);
+    if (change && preferencesRef.current.autoRecordNewData !== false) {
+      const updated = recordFieldChange(profileRef.current, change, window.location.href);
+      profileRef.current = updated;
+      setProfile(updated);
+      saveProfile(updated);
+
+      if (preferencesRef.current.notifyOnAutoRecord !== false) {
+        showToast(
+          change.isNew
+            ? `Saved ${change.label} to vault`
+            : `Updated ${change.label} in vault`
+        );
+      }
+    }
+  };
+
+  // Event listeners for page interaction
   useEffect(() => {
-    let blurTimer: any;
+    let hideTimer: ReturnType<typeof setTimeout>;
 
-    const handleFocus = (e: Event) => {
-      clearTimeout(blurTimer);
-      const target = e.target as HTMLElement;
+    const findTargetInput = (target: HTMLElement | null): HTMLElement | null => {
+      if (!target) return null;
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) {
+        return target;
+      }
+      if (target.tagName === 'LABEL') {
+        const forId = target.getAttribute('for');
+        if (forId) {
+          const el = document.getElementById(forId);
+          if (el && ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName)) return el;
+        }
+        return target.querySelector('input, textarea, select');
+      }
+      const group = target.closest('.form-group, .form-item, .form-field, .input-group');
+      if (group && !target.closest('button, .btn-submit, .btn')) {
+        return group.querySelector('input, textarea, select');
+      }
+      return null;
+    };
+
+    const activateField = (target: HTMLElement, isHover = false) => {
       if (!['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return;
 
       const type = (target.getAttribute('type') || 'text').toLowerCase();
-      if (['hidden', 'submit', 'button', 'reset', 'file'].includes(type)) return;
+      if (['hidden', 'submit', 'button', 'reset', 'file', 'image'].includes(type)) return;
 
       const { label } = getElementIdentifier(target);
       const matchedKey = matchElementToProfileKey(target);
@@ -235,36 +308,25 @@ const FormEasyApp = () => {
       let matchedVal: string | null = null;
       if (matchedKey) {
         if (matchedKey === 'fullName') {
-          matchedVal = profile.fullName || `${profile.firstName} ${profile.lastName}`.trim();
+          matchedVal = profileRef.current.fullName || `${profileRef.current.firstName || ''} ${profileRef.current.lastName || ''}`.trim();
         } else {
-          matchedVal = profile[matchedKey] ? String(profile[matchedKey]) : null;
+          matchedVal = profileRef.current[matchedKey] ? String(profileRef.current[matchedKey]) : null;
+        }
+      } else if (profileRef.current.customFields) {
+        const { text } = getElementIdentifier(target);
+        for (const [cKey, cVal] of Object.entries(profileRef.current.customFields)) {
+          if (text.includes(cKey.toLowerCase())) {
+            matchedVal = cVal;
+            break;
+          }
         }
       }
 
-      if (activeElementRef.current === target) return;
+      if (activeElementRef.current === target && activeField) {
+        return;
+      }
       activeElementRef.current = target;
 
-      setActiveField({
-        element: target,
-        label,
-        rect: target.getBoundingClientRect(),
-        matchedKey,
-        value: matchedVal
-      });
-
-      setExplanation(null);
-      setIsLoading(true);
-
-      // Auto-fill on focus if preference enabled and field is currently empty
-      if (preferences.autoFillOnFocus && matchedVal) {
-        const inputEl = target as HTMLInputElement;
-        if (!inputEl.value) {
-          fillElementValue(target, matchedVal);
-          showToast(`⚡ Autofilled ${label}`);
-        }
-      }
-
-      // Fetch AI explanation
       let formCtx = '';
       const form = target.closest('form');
       if (form) {
@@ -274,19 +336,108 @@ const FormEasyApp = () => {
         }
       }
 
-      chrome.runtime.sendMessage(
-        { type: 'EXPLAIN_FIELD', payload: { label, context: formCtx } },
-        (response) => {
-          if (response && response.success) {
-            setExplanation(response.data);
-          }
-          setIsLoading(false);
+      const instantExp = getFieldExplanation(label, type, formCtx);
+
+      setActiveField({
+        element: target,
+        label,
+        rect: target.getBoundingClientRect(),
+        matchedKey,
+        value: matchedVal,
+        isHover
+      });
+
+      setExplanation(instantExp);
+
+      // Autofill on focus if configured
+      if (!isHover && preferencesRef.current.autoFillOnFocus && matchedVal) {
+        const inputEl = target as HTMLInputElement;
+        if (!inputEl.value) {
+          fillElementValue(target, matchedVal);
         }
-      );
+      }
+
+      // Query generative explanation if configured
+      if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
+        chrome.runtime.sendMessage(
+          { type: 'EXPLAIN_FIELD', payload: { label, context: formCtx } },
+          (response) => {
+            if (response && response.success && response.data) {
+              setExplanation(response.data);
+            }
+          }
+        );
+      }
+    };
+
+    const handleMouseOver = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target) return;
+
+      const container = document.getElementById('formeasy-root');
+      if (container && container.contains(target)) {
+        clearTimeout(hideTimer);
+        isHoveringPopup = true;
+        return;
+      }
+
+      const input = findTargetInput(target);
+      if (!input) return;
+
+      const type = (input.getAttribute('type') || 'text').toLowerCase();
+      if (['hidden', 'submit', 'button', 'reset', 'file', 'image'].includes(type)) return;
+
+      clearTimeout(hideTimer);
+      activateField(input, true);
+    };
+
+    const handleMouseOut = (e: MouseEvent) => {
+      if (!activeElementRef.current) return;
+
+      const target = e.target as HTMLElement;
+      if (target !== activeElementRef.current && !activeElementRef.current.contains(target)) {
+        return;
+      }
+
+      const related = e.relatedTarget as HTMLElement;
+      const container = document.getElementById('formeasy-root');
+
+      if (related && container && container.contains(related)) {
+        clearTimeout(hideTimer);
+        return;
+      }
+
+      if (related && activeElementRef.current.contains(related)) {
+        return;
+      }
+
+      if (document.activeElement === activeElementRef.current) {
+        return;
+      }
+
+      clearTimeout(hideTimer);
+      hideTimer = setTimeout(() => {
+        if (isHoveringPopup) return;
+        if (activeElementRef.current && document.activeElement === activeElementRef.current) return;
+
+        activeElementRef.current = null;
+        setActiveField(null);
+        setExplanation(null);
+      }, 350);
+    };
+
+    const handleFocus = (e: Event) => {
+      clearTimeout(hideTimer);
+      const target = e.target as HTMLElement;
+      activateField(target, false);
     };
 
     const handleBlur = (e: Event) => {
-      blurTimer = setTimeout(() => {
+      const target = e.target as HTMLElement;
+      checkAndRecordField(target);
+
+      clearTimeout(hideTimer);
+      hideTimer = setTimeout(() => {
         const focusEvent = e as FocusEvent;
         const container = document.getElementById('formeasy-root');
 
@@ -300,80 +451,92 @@ const FormEasyApp = () => {
         activeElementRef.current = null;
         setActiveField(null);
         setExplanation(null);
-      }, 250);
+      }, 300);
     };
 
+    const handleSubmit = (e: Event) => {
+      const form = e.target as HTMLFormElement;
+      if (!form || form.tagName !== 'FORM') return;
+
+      const changes = scanFormForNewChanges(form, profileRef.current);
+      if (changes.length > 0 && preferencesRef.current.autoRecordNewData !== false) {
+        let updated = { ...profileRef.current };
+        for (const change of changes) {
+          updated = recordFieldChange(updated, change, window.location.href);
+        }
+        profileRef.current = updated;
+        setProfile(updated);
+        saveProfile(updated);
+
+        if (preferencesRef.current.notifyOnAutoRecord !== false) {
+          showToast(`Saved ${changes.length} entries to vault`);
+        }
+      }
+    };
+
+    document.addEventListener('mouseover', handleMouseOver, true);
+    document.addEventListener('mouseout', handleMouseOut, true);
     document.addEventListener('focusin', handleFocus);
     document.addEventListener('focusout', handleBlur);
+    document.addEventListener('submit', handleSubmit, true);
 
     return () => {
+      document.removeEventListener('mouseover', handleMouseOver, true);
+      document.removeEventListener('mouseout', handleMouseOut, true);
       document.removeEventListener('focusin', handleFocus);
       document.removeEventListener('focusout', handleBlur);
-      clearTimeout(blurTimer);
+      document.removeEventListener('submit', handleSubmit, true);
+      clearTimeout(hideTimer);
     };
   }, [profile, preferences]);
 
   const handleAutofillSingleField = () => {
     if (activeField?.element && activeField.value) {
       fillElementValue(activeField.element, activeField.value);
-      showToast(`⚡ Filled ${activeField.label} with saved data!`);
+      showToast(`Filled ${activeField.label}`);
     }
   };
 
   const handleAutofillAllFields = () => {
-    const result = autofillEntirePage(profile);
-    showToast(`✨ Automatically filled ${result.filledCount} of ${result.totalDetected} fields!`);
+    const result = autofillEntirePage(profileRef.current);
+    showToast(`Autofilled ${result.filledCount} fields`);
     setActiveField(null);
   };
 
-  // Card placement
-  let cardPosition: React.CSSProperties = { position: 'absolute', zIndex: 999999 };
+  let cardPosition: React.CSSProperties = { position: 'absolute', zIndex: 2147483647 };
   if (activeField) {
-    const spaceRight = window.innerWidth - activeField.rect.right;
-    const spaceBelow = window.innerHeight - activeField.rect.bottom;
+    const currentRect = activeField.element.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - currentRect.bottom;
 
-    if (spaceRight > 360) {
-      // Right side
+    if (spaceBelow >= 260) {
       cardPosition = {
         position: 'absolute',
-        top: activeField.rect.top + window.scrollY,
-        left: activeField.rect.right + window.scrollX + 12,
-        zIndex: 999999
-      };
-    } else if (spaceBelow > 300) {
-      // Below
-      cardPosition = {
-        position: 'absolute',
-        top: activeField.rect.bottom + window.scrollY + 8,
-        left: Math.max(10, activeField.rect.left + window.scrollX),
-        zIndex: 999999
+        top: currentRect.bottom + window.scrollY + 6,
+        left: Math.max(12, Math.min(window.innerWidth - 370, currentRect.left + window.scrollX)),
+        zIndex: 2147483647
       };
     } else {
-      // Above
       cardPosition = {
         position: 'absolute',
-        top: Math.max(10, activeField.rect.top + window.scrollY - 280),
-        left: Math.max(10, activeField.rect.left + window.scrollX),
-        zIndex: 999999
+        top: Math.max(10, currentRect.top + window.scrollY - 310),
+        left: Math.max(12, Math.min(window.innerWidth - 370, currentRect.left + window.scrollX)),
+        zIndex: 2147483647
       };
     }
   }
 
   return (
     <>
-      {/* Toast Notification */}
       {toastMessage && (
         <div className="formeasy-toast">
-          <div className="formeasy-toast-icon">✓</div>
+          <div className="formeasy-toast-icon">&#10003;</div>
           <div>{toastMessage}</div>
         </div>
       )}
 
-      {/* Floating Bottom Assistant Pill on Pages with Forms */}
       {showWidget && detectedCount > 0 && preferences.showFloatingWidget && (
         <div className="formeasy-floating-widget">
           <div className="formeasy-widget-pill">
-            <span>✨</span>
             <span>FormEasy</span>
             <span className="formeasy-widget-count">{detectedCount} fields</span>
           </div>
@@ -381,28 +544,28 @@ const FormEasyApp = () => {
           <button
             onClick={handleAutofillAllFields}
             className="formeasy-widget-autofill-btn"
-            title="Instantly autofill all matching fields from your cloud account"
+            title="Autofill all matching fields"
           >
-            <span>⚡</span> Auto-Fill Form
+            Auto-Fill Form
           </button>
 
           <button
             onClick={() => setShowWidget(false)}
             className="formeasy-widget-close"
-            title="Hide assistant for now"
+            title="Hide assistant"
           >
-            ✕
+            &times;
           </button>
         </div>
       )}
 
-      {/* Active Field Floating Card */}
       {activeField && (
         <FloatingCard
           label={activeField.label}
-          explanation={isLoading ? { whatToEnter: "Analyzing field with AI..." } : explanation}
+          explanation={explanation}
           style={cardPosition}
           onClose={() => {
+            activeElementRef.current = null;
             setActiveField(null);
             setExplanation(null);
           }}
@@ -413,13 +576,13 @@ const FormEasyApp = () => {
           fieldValue={activeField.value}
           accountName={account.isLoggedIn ? account.name : undefined}
           totalFormFields={detectedCount}
+          isPreview={activeField.isHover}
         />
       )}
     </>
   );
 };
 
-// Container setup
 let container = document.getElementById('formeasy-root');
 if (!container) {
   container = document.createElement('div');

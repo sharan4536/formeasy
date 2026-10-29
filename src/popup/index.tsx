@@ -91,11 +91,15 @@ const Popup = () => {
         {/* Sync Status Badge */}
         <div 
           onClick={() => openDashboard('sync')} 
-          className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-full text-[10px] font-medium cursor-pointer hover:bg-emerald-100 transition-colors"
+          className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium cursor-pointer transition-colors border ${
+            account.isLoggedIn 
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
+              : 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100'
+          }`}
           title="Click to view synced devices"
         >
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span>Synced</span>
+          <span className={`w-1.5 h-1.5 rounded-full ${account.isLoggedIn ? 'bg-emerald-500 animate-pulse' : 'bg-blue-500'}`}></span>
+          <span>{account.isLoggedIn ? 'Synced' : 'Local'}</span>
         </div>
       </div>
 
@@ -103,11 +107,15 @@ const Popup = () => {
       <div className="mt-3 p-2.5 bg-gray-50 rounded-lg border border-gray-100 flex items-center justify-between">
         <div className="flex items-center gap-2 truncate">
           <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold uppercase">
-            {account.name ? account.name.charAt(0) : 'U'}
+            {account.isLoggedIn && account.name ? account.name.charAt(0) : 'U'}
           </div>
           <div className="truncate">
-            <div className="text-xs font-semibold text-gray-800 truncate">{account.name || 'User Account'}</div>
-            <div className="text-[10px] text-gray-500 truncate">{account.email}</div>
+            <div className="text-xs font-semibold text-gray-800 truncate">
+              {account.isLoggedIn ? (account.name || account.email) : 'Guest / Local Vault'}
+            </div>
+            <div className="text-[10px] text-gray-500 truncate">
+              {account.isLoggedIn ? account.email : 'Click to connect cloud'}
+            </div>
           </div>
         </div>
         <button 
@@ -115,7 +123,7 @@ const Popup = () => {
           className="text-[10px] text-blue-600 font-medium hover:underline flex items-center gap-1 shrink-0 ml-1"
         >
           <Smartphone className="w-3 h-3" />
-          <span>{account.devices.length} dev</span>
+          <span>{account.isLoggedIn ? `${account.devices?.length || 0} dev` : 'Login'}</span>
         </button>
       </div>
 

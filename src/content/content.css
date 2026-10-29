@@ -16,19 +16,20 @@
   box-sizing: border-box;
 }
 
-/* Floating Card for Focused Field */
 .formeasy-floating-card {
-  width: 330px;
+  width: 350px;
+  max-width: calc(100vw - 32px);
   background: #ffffff;
-  border: 1px solid #e2e8f0;
+  border: 1.5px solid #3b82f6;
   border-radius: 12px;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 14px 35px -5px rgba(37, 99, 235, 0.25), 0 8px 12px -4px rgba(0, 0, 0, 0.1);
   padding: 16px;
   font-size: 13.5px;
   line-height: 1.5;
   pointer-events: auto;
-  animation: formeasy-fadein 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: formeasy-fadein 0.15s cubic-bezier(0.16, 1, 0.3, 1);
   backdrop-filter: blur(8px);
+  z-index: 2147483647;
 }
 
 @keyframes formeasy-fadein {
@@ -72,6 +73,19 @@
   border-radius: 999px;
   font-weight: 600;
   border: 1px solid #a7f3d0;
+}
+
+.formeasy-hover-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-weight: 600;
+  border: 1px solid #bfdbfe;
 }
 
 .formeasy-close {

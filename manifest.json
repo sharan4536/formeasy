@@ -18,7 +18,9 @@
     }
   ],
   "host_permissions": [
-    "https://html.duckduckgo.com/*"
+    "http://localhost:*/*",
+    "http://127.0.0.1:*/*",
+    "https://*/*"
   ],
   "permissions": [
     "storage",

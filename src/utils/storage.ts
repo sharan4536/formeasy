@@ -1,79 +1,74 @@
 import { UserProfile, UserAccount, UserPreferences, ConnectedDevice } from './types';
+import { saveProfileToCloud, fetchProfileFromCloud, loginToCloud, registerToCloud, fetchDevicesFromCloud } from './cloudApi';
 
 export const DEFAULT_PROFILE: UserProfile = {
-  firstName: 'Sharangosh',
-  lastName: 'Reddy',
-  fullName: 'Sharangosh Reddy',
-  email: 'sharangosh.reddy@gmail.com',
-  phone: '9876543210',
-  dob: '2002-05-15',
-  gender: 'Male',
-  bloodGroup: 'B+',
-  nationality: 'Indian',
-  maritalStatus: 'Single',
-  fathersName: 'K. Rama Reddy',
-  mothersName: 'K. Lakshmi Devi',
-  guardianName: 'K. Rama Reddy',
-  permanentAddress: 'Flat 402, Sai Nilayam, Road No. 4, Banjara Hills',
-  correspondenceAddress: 'Flat 402, Sai Nilayam, Road No. 4, Banjara Hills',
-  city: 'Hyderabad',
-  state: 'Telangana',
-  pincode: '500034',
-  country: 'India',
-  aadhaarNumber: '548291023847',
-  panNumber: 'ABCDE1234F',
-  passportNumber: 'Z8942105',
-  highestQualification: 'B.Tech Computer Science',
-  institution: 'National Institute of Technology',
-  registrationNumber: '2024CS1042',
-  occupation: 'Student / Software Trainee',
-  bankAccount: '987654321098',
-  ifsc: 'HDFC0001234',
-  bankName: 'HDFC Bank',
-  annualIncome: '650000',
-  nominee: 'K. Rama Reddy'
+  firstName: '',
+  lastName: '',
+  fullName: '',
+  email: '',
+  phone: '',
+  dob: '',
+  gender: '',
+  bloodGroup: '',
+  nationality: '',
+  maritalStatus: '',
+  fathersName: '',
+  mothersName: '',
+  guardianName: '',
+  permanentAddress: '',
+  correspondenceAddress: '',
+  city: '',
+  state: '',
+  pincode: '',
+  country: '',
+  aadhaarNumber: '',
+  panNumber: '',
+  passportNumber: '',
+  highestQualification: '',
+  institution: '',
+  registrationNumber: '',
+  occupation: '',
+  bankAccount: '',
+  ifsc: '',
+  bankName: '',
+  annualIncome: '',
+  nominee: '',
+  emergencyContact: '',
+  branch: '',
+  cgpa: '',
+  yearOfPassing: '',
+  linkedin: '',
+  github: '',
+  portfolio: '',
+  skills: '',
+  gstNumber: '',
+  businessName: '',
+  tradeName: '',
+  businessAddress: '',
+  portalUsername: '',
+  turnover: '',
+  authorizedSignatory: '',
+  customFields: {},
+  learnedHistory: []
 };
 
 export const DEFAULT_ACCOUNT: UserAccount = {
-  id: 'usr_89214',
-  email: 'sharangosh.reddy@gmail.com',
-  name: 'Sharangosh Reddy',
-  avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-  isLoggedIn: true,
-  lastSynced: new Date().toISOString(),
-  syncCode: 'FE-892145',
-  devices: [
-    {
-      id: 'dev_current',
-      name: 'MacBook Air (macOS)',
-      type: 'laptop',
-      browser: 'Chrome 124',
-      lastActive: 'Active now',
-      isCurrent: true
-    },
-    {
-      id: 'dev_win',
-      name: 'Campus Workstation (Windows 11)',
-      type: 'desktop',
-      browser: 'Chrome 123',
-      lastActive: 'Synced 2 hours ago',
-      isCurrent: false
-    },
-    {
-      id: 'dev_phone',
-      name: 'Pixel 8 Pro (Android 14)',
-      type: 'mobile',
-      browser: 'Chrome Mobile',
-      lastActive: 'Synced yesterday',
-      isCurrent: false
-    }
-  ]
+  id: '',
+  email: '',
+  name: '',
+  avatar: '',
+  isLoggedIn: false,
+  lastSynced: '',
+  syncCode: '',
+  devices: []
 };
 
 export const DEFAULT_PREFERENCES: UserPreferences = {
   autoFillPageOnLoad: false,
   autoFillOnFocus: true,
   showFloatingWidget: true,
+  autoRecordNewData: true,
+  notifyOnAutoRecord: true,
   confirmSensitive: false,
   showTips: true,
   showWarnings: true,
@@ -98,6 +93,19 @@ export async function loadAllData(): Promise<{
 }> {
   return new Promise((resolve) => {
     if (typeof chrome === 'undefined' || !chrome.storage) {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        try {
+          const rawProf = window.localStorage.getItem(KEY_PROFILE);
+          const rawAcc = window.localStorage.getItem(KEY_ACCOUNT);
+          const rawPrefs = window.localStorage.getItem(KEY_PREFS);
+          resolve({
+            profile: rawProf ? JSON.parse(rawProf) : DEFAULT_PROFILE,
+            account: rawAcc ? JSON.parse(rawAcc) : DEFAULT_ACCOUNT,
+            preferences: rawPrefs ? JSON.parse(rawPrefs) : DEFAULT_PREFERENCES
+          });
+          return;
+        } catch {}
+      }
       resolve({
         profile: DEFAULT_PROFILE,
         account: DEFAULT_ACCOUNT,
@@ -125,29 +133,50 @@ export async function loadAllData(): Promise<{
 }
 
 /**
- * Saves profile data to both sync and local storage for cross-device persistence
+ * Loads current account info
+ */
+export async function loadAccount(): Promise<UserAccount> {
+  const data = await loadAllData();
+  return data.account;
+}
+
+/**
+ * Saves profile data to both sync/local storage and the cloud database
  */
 export async function saveProfile(profile: UserProfile): Promise<void> {
-  return new Promise((resolve) => {
-    const updated = {
-      ...profile,
-      fullName: profile.fullName || `${profile.firstName} ${profile.lastName}`.trim()
-    };
+  const updated = {
+    ...profile,
+    fullName: profile.fullName || `${profile.firstName} ${profile.lastName}`.trim()
+  };
 
-    if (typeof chrome !== 'undefined' && chrome.storage) {
-      // Sync across any device logged into the same browser account
-      chrome.storage.sync.set({ [KEY_PROFILE]: updated }, () => {
-        // Also mirror to local storage
-        chrome.storage.local.set({ [KEY_PROFILE]: updated, userProfile: updated }, () => {
-          // Update last synced in account
-          updateLastSynced();
-          resolve();
-        });
+  if (typeof chrome !== 'undefined' && chrome.storage) {
+    // 1. Sync across Chrome browser accounts
+    chrome.storage.sync.set({ [KEY_PROFILE]: updated }, () => {
+      chrome.storage.local.set({ [KEY_PROFILE]: updated, userProfile: updated });
+      updateLastSynced();
+    });
+  } else if (typeof window !== 'undefined' && window.localStorage) {
+    window.localStorage.setItem(KEY_PROFILE, JSON.stringify(updated));
+  }
+
+  // 2. Persist to Cloud Database (Backend REST API)
+  try {
+    if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
+      chrome.runtime.sendMessage({
+        type: 'SAVE_PROFILE_CLOUD',
+        payload: { profile: updated }
+      }, () => {
+        if (chrome.runtime.lastError) {
+          loadAccount().then(acc => saveProfileToCloud(updated, acc.token, acc.email)).catch(() => {});
+        }
       });
     } else {
-      resolve();
+      const acc = await loadAccount();
+      await saveProfileToCloud(updated, acc.token, acc.email);
     }
-  });
+  } catch (err) {
+    console.warn('Cloud sync error:', err);
+  }
 }
 
 /**
@@ -162,6 +191,9 @@ export async function saveAccount(account: UserAccount): Promise<void> {
         });
       });
     } else {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem(KEY_ACCOUNT, JSON.stringify(account));
+      }
       resolve();
     }
   });
@@ -182,6 +214,9 @@ export async function savePreferences(preferences: UserPreferences): Promise<voi
         });
       });
     } else {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem(KEY_PREFS, JSON.stringify(preferences));
+      }
       resolve();
     }
   });
@@ -285,15 +320,55 @@ export async function importCloudPayload(jsonString: string): Promise<boolean> {
 export async function loginOrRegisterAccount(
   email: string,
   name: string,
-  _password?: string
-): Promise<{ success: boolean; account: UserAccount; profile: UserProfile }> {
+  password?: string,
+  isRegister = false
+): Promise<{ success: boolean; account: UserAccount; profile: UserProfile; message?: string }> {
+  const pwd = password || '';
+  if (!pwd) {
+    const currentData = await loadAllData();
+    return { success: false, account: currentData.account, profile: currentData.profile, message: 'Password is required' };
+  }
+  try {
+    const cloudRes = isRegister
+      ? await registerToCloud(email, pwd, name)
+      : await loginToCloud(email, pwd);
+
+    if (cloudRes.success && cloudRes.user && cloudRes.profile) {
+      await saveAccount(cloudRes.user);
+      await saveProfile(cloudRes.profile);
+      return {
+        success: true,
+        account: cloudRes.user,
+        profile: cloudRes.profile,
+        message: cloudRes.message
+      };
+    }
+
+    // If login failed because account was not registered yet, auto-register
+    if (!isRegister && cloudRes.message?.includes('Invalid')) {
+      const regRes = await registerToCloud(email, pwd, name);
+      if (regRes.success && regRes.user && regRes.profile) {
+        await saveAccount(regRes.user);
+        await saveProfile(regRes.profile);
+        return {
+          success: true,
+          account: regRes.user,
+          profile: regRes.profile,
+          message: 'Account created and synced to cloud vault!'
+        };
+      }
+    }
+  } catch (err) {
+    console.warn('Direct cloud API auth note:', err);
+  }
+
+  // 2. Local session fallback
   const currentData = await loadAllData();
   const now = new Date().toISOString();
 
-  // Create new device session
   const thisDevice: ConnectedDevice = {
     id: 'dev_' + Math.random().toString(36).substring(2, 9),
-    name: `${navigator.platform || 'Laptop/PC'} (${navigator.userAgent.includes('Mac') ? 'macOS' : 'Windows'})`,
+    name: `${navigator.platform || 'Device'} (${navigator.userAgent.includes('Mac') ? 'macOS' : 'PC'})`,
     type: 'laptop',
     browser: 'Chrome Extension',
     lastActive: 'Active now',
@@ -307,17 +382,7 @@ export async function loginOrRegisterAccount(
     isLoggedIn: true,
     lastSynced: now,
     syncCode: 'FE-' + Math.floor(100000 + Math.random() * 900000),
-    devices: [
-      thisDevice,
-      {
-        id: 'dev_mock_mobile',
-        name: 'Android Phone (Synced)',
-        type: 'mobile',
-        browser: 'Mobile Chrome',
-        lastActive: 'Synced 1 hour ago',
-        isCurrent: false
-      }
-    ]
+    devices: [thisDevice]
   };
 
   const updatedProfile: UserProfile = {
@@ -331,5 +396,5 @@ export async function loginOrRegisterAccount(
   await saveAccount(updatedAccount);
   await saveProfile(updatedProfile);
 
-  return { success: true, account: updatedAccount, profile: updatedProfile };
+  return { success: true, account: updatedAccount, profile: updatedProfile, message: 'Logged in successfully!' };
 }

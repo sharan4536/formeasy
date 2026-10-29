@@ -70,7 +70,11 @@ const Options = () => {
               <div>
                 <h2 className="text-sm font-bold text-slate-900">Connected Account & Cloud Sync</h2>
                 <p className="text-xs text-slate-500">
-                  Logged in as <span className="font-semibold text-slate-800">{account.email}</span> • {account.devices.length} devices connected
+                  {account.isLoggedIn && account.email ? (
+                    <>Logged in as <span className="font-semibold text-slate-800">{account.email}</span> • {account.devices?.length || 0} devices connected</>
+                  ) : (
+                    <>Not signed in • Local vault active</>
+                  )}
                 </p>
               </div>
             </div>
